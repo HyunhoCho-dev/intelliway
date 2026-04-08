@@ -117,6 +117,11 @@ export async function handleOwnerCommand(
  * Drain the manager's inbox, process results from agents, and compose
  * a status report.  Called by the Cron trigger and by GET /report.
  */
+/** Maximum number of characters shown per update entry in the inbox report. */
+const MAX_UPDATE_PREVIEW_LENGTH = 120;
+/** Maximum number of characters for a status update preview. */
+const MAX_STATUS_PREVIEW_LENGTH = 200;
+
 export async function processInbox(env: Env): Promise<string> {
   const messages = await drainInbox(env.MESSAGE_BUS, "manager");
   const updates: string[] = [];
@@ -124,12 +129,12 @@ export async function processInbox(env: Env): Promise<string> {
   for (const msg of messages) {
     if (msg.type === "task_result" && msg.taskId) {
       await updateTaskStatus(env.TASK_QUEUE, msg.taskId, "done", { result: msg.payload });
-      updates.push(`✅ [${msg.from}] Task ${msg.taskId} complete: ${msg.payload.slice(0, 120)}`);
+      updates.push(`✅ [${msg.from}] Task ${msg.taskId} complete: ${msg.payload.slice(0, MAX_UPDATE_PREVIEW_LENGTH)}`);
     } else if (msg.type === "task_error" && msg.taskId) {
       await updateTaskStatus(env.TASK_QUEUE, msg.taskId, "failed", { error: msg.payload });
-      updates.push(`❌ [${msg.from}] Task ${msg.taskId} failed: ${msg.payload.slice(0, 120)}`);
+      updates.push(`❌ [${msg.from}] Task ${msg.taskId} failed: ${msg.payload.slice(0, MAX_UPDATE_PREVIEW_LENGTH)}`);
     } else if (msg.type === "status_update") {
-      updates.push(`ℹ️ [${msg.from}]: ${msg.payload.slice(0, 200)}`);
+      updates.push(`ℹ️ [${msg.from}]: ${msg.payload.slice(0, MAX_STATUS_PREVIEW_LENGTH)}`);
     }
   }
 

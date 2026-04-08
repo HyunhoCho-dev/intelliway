@@ -77,8 +77,9 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
       });
     }
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    response = new Response(JSON.stringify({ error: "Internal Server Error", message }), {
+    // Do not expose internal error details to the caller.
+    console.error("[intelliway] Unhandled error:", err instanceof Error ? err.message : String(err));
+    response = new Response(JSON.stringify({ error: "Internal Server Error" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });

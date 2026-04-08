@@ -29,14 +29,14 @@ import {
 // Auth middleware
 // ─────────────────────────────────────────────────────────────────────────────
 
-function isAuthorised(req: Request, env: Env): boolean {
+function isAuthorized(req: Request, env: Env): boolean {
   if (!env.OWNER_API_SECRET) return true; // dev mode — no auth
   const secret = req.headers.get("X-Owner-Secret");
   return secret === env.OWNER_API_SECRET;
 }
 
-function unauthorised(): Response {
-  return new Response(JSON.stringify({ error: "Unauthorised" }), {
+function unauthorized(): Response {
+  return new Response(JSON.stringify({ error: "Unauthorized" }), {
     status: 401,
     headers: { "Content-Type": "application/json" },
   });
@@ -55,7 +55,7 @@ function json(data: unknown, status = 200): Response {
 
 /** POST /task — submit a command to the manager agent. */
 export async function handlePostTask(req: Request, env: Env): Promise<Response> {
-  if (!isAuthorised(req, env)) return unauthorised();
+  if (!isAuthorized(req, env)) return unauthorized();
 
   const body = await req.json<{ command?: string }>().catch(() => ({ command: undefined }));
   if (!body.command) {
@@ -68,7 +68,7 @@ export async function handlePostTask(req: Request, env: Env): Promise<Response> 
 
 /** GET /status — return all tasks with their current status. */
 export async function handleGetStatus(_req: Request, env: Env): Promise<Response> {
-  if (!isAuthorised(_req, env)) return unauthorised();
+  if (!isAuthorized(_req, env)) return unauthorized();
 
   const tasks = await listAllTasks(env.TASK_QUEUE);
   return json({ tasks });
@@ -76,7 +76,7 @@ export async function handleGetStatus(_req: Request, env: Env): Promise<Response
 
 /** GET /report — generate a narrative report of recent work. */
 export async function handleGetReport(_req: Request, env: Env): Promise<Response> {
-  if (!isAuthorised(_req, env)) return unauthorised();
+  if (!isAuthorized(_req, env)) return unauthorized();
 
   // First drain the manager's inbox so the report is up to date.
   const updates = await processInbox(env);
@@ -86,7 +86,7 @@ export async function handleGetReport(_req: Request, env: Env): Promise<Response
 
 /** POST /chat — real-time conversational chat with the manager. */
 export async function handlePostChat(req: Request, env: Env): Promise<Response> {
-  if (!isAuthorised(req, env)) return unauthorised();
+  if (!isAuthorized(req, env)) return unauthorized();
 
   const body = await req.json<{ message?: string }>().catch(() => ({ message: undefined }));
   if (!body.message) {
