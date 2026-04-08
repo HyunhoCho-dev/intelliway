@@ -1,0 +1,37 @@
+name = "intelliway"
+main = "src/index.ts"
+compatibility_date = "2024-12-30"
+compatibility_flags = ["nodejs_compat"]
+
+# ──────────────────────────────────────────────
+# KV Namespaces
+# ──────────────────────────────────────────────
+[[kv_namespaces]]
+binding = "TASK_QUEUE"
+id      = "REPLACE_WITH_TASK_QUEUE_KV_ID"
+
+[[kv_namespaces]]
+binding = "AGENT_MEMORY"
+id      = "REPLACE_WITH_AGENT_MEMORY_KV_ID"
+
+[[kv_namespaces]]
+binding = "MESSAGE_BUS"
+id      = "REPLACE_WITH_MESSAGE_BUS_KV_ID"
+
+# ──────────────────────────────────────────────
+# Cron Triggers — periodic agent heartbeat
+# ──────────────────────────────────────────────
+[triggers]
+crons = ["*/5 * * * *"]
+
+# ──────────────────────────────────────────────
+# Environment Variables (set via `wrangler secret put`)
+# ──────────────────────────────────────────────
+# GITHUB_CLIENT_ID      — GitHub OAuth App client ID
+# COPILOT_TOKEN         — GitHub Copilot bearer token (auto-refreshed)
+# KAGGLE_USERNAME       — Kaggle account username
+# KAGGLE_KEY            — Kaggle API key
+# OWNER_API_SECRET      — shared secret for owner API authentication
+
+[vars]
+GITHUB_CLIENT_ID = ""
