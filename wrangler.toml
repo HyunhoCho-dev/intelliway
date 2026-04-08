@@ -27,11 +27,7 @@ crons = ["*/5 * * * *"]
 # ──────────────────────────────────────────────
 # Environment Variables (set via `wrangler secret put`)
 # ──────────────────────────────────────────────
-# GITHUB_CLIENT_ID      — GitHub OAuth App client ID
-# COPILOT_TOKEN         — GitHub Copilot bearer token (auto-refreshed)
+# COPILOT_TOKEN         — GitHub Copilot bearer token (auto-refreshed via Device Flow)
 # KAGGLE_USERNAME       — Kaggle account username
 # KAGGLE_KEY            — Kaggle API key
 # OWNER_API_SECRET      — shared secret for owner API authentication
-
-[vars]
-GITHUB_CLIENT_ID = ""

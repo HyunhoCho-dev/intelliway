@@ -23,6 +23,8 @@ import {
   requestDeviceCode,
   pollForAccessToken,
   storeGitHubToken,
+  storePendingDeviceCode,
+  getPendingDeviceCode,
 } from "../integrations/copilot.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -101,37 +103,41 @@ export async function handlePostChat(req: Request, env: Env): Promise<Response> 
 // Auth setup routes (Device Login Flow)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** POST /auth/device — initiate GitHub Copilot Device Login. */
-export async function handleAuthDevice(_req: Request, env: Env): Promise<Response> {
-  if (!env.GITHUB_CLIENT_ID) {
-    return json({ error: "GITHUB_CLIENT_ID is not configured." }, 500);
-  }
-  const deviceCode = await requestDeviceCode(env.GITHUB_CLIENT_ID);
+/**
+ * GET /auth/start — initiate GitHub Copilot Device Login.
+ *
+ * Uses GitHub's public CLI Client ID (no OAuth App required).
+ * Returns the user_code and verification URL to display to the operator.
+ * The device_code is stored in KV so /auth/status can poll it.
+ */
+export async function handleAuthStart(_req: Request, env: Env): Promise<Response> {
+  const deviceCode = await requestDeviceCode();
+  await storePendingDeviceCode(env.AGENT_MEMORY, deviceCode.device_code, deviceCode.expires_in);
   return json({
-    user_code: deviceCode.user_code,
-    verification_uri: deviceCode.verification_uri,
-    device_code: deviceCode.device_code,
-    expires_in: deviceCode.expires_in,
-    interval: deviceCode.interval,
-    instructions: `Open ${deviceCode.verification_uri} and enter code: ${deviceCode.user_code}`,
+    code: deviceCode.user_code,
+    url: deviceCode.verification_uri,
+    instructions: `브라우저에서 ${deviceCode.verification_uri} 접속 후 코드 ${deviceCode.user_code} 입력하세요`,
   });
 }
 
-/** POST /auth/device/complete — exchange device code for GitHub token. */
-export async function handleAuthDeviceComplete(req: Request, env: Env): Promise<Response> {
-  if (!env.GITHUB_CLIENT_ID) {
-    return json({ error: "GITHUB_CLIENT_ID is not configured." }, 500);
-  }
-  const body = await req.json<{ device_code?: string }>().catch(() => ({ device_code: undefined }));
-  if (!body.device_code) {
-    return json({ error: "Missing 'device_code' field." }, 400);
+/**
+ * GET /auth/status — poll whether the user has completed authentication.
+ *
+ * Returns { authenticated: true } once the GitHub token is obtained and
+ * stored.  Returns { authenticated: false, pending: true } while still
+ * waiting.
+ */
+export async function handleAuthStatus(_req: Request, env: Env): Promise<Response> {
+  const deviceCode = await getPendingDeviceCode(env.AGENT_MEMORY);
+  if (!deviceCode) {
+    return json({ authenticated: false, message: "No pending auth session.  Call /auth/start first." });
   }
 
-  const token = await pollForAccessToken(env.GITHUB_CLIENT_ID, body.device_code);
+  const token = await pollForAccessToken(deviceCode);
   if (!token) {
-    return json({ ok: false, message: "Still pending — please try again shortly." });
+    return json({ authenticated: false, pending: true, message: "Waiting for user to enter code in browser." });
   }
 
-  await storeGitHubToken(env.TASK_QUEUE, token);
-  return json({ ok: true, message: "GitHub Copilot authenticated successfully." });
+  await storeGitHubToken(env.AGENT_MEMORY, token);
+  return json({ authenticated: true, message: "GitHub Copilot authenticated successfully." });
 }

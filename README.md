@@ -83,33 +83,25 @@ npx wrangler kv:namespace create MESSAGE_BUS
 
 생성된 ID를 `wrangler.toml`의 해당 `id` 필드에 입력하세요.
 
-### 3. GitHub OAuth App 생성
-
-1. [GitHub Developer Settings](https://github.com/settings/developers) → **OAuth Apps** → **New OAuth App**
-2. Application name: `Intelliway`
-3. Authorization callback URL: `https://github.com/login/device/code` (Device Flow 사용)
-4. **Client ID**를 복사하여 `wrangler.toml`의 `GITHUB_CLIENT_ID`에 입력
-
-### 4. GitHub Copilot 인증 (Device Login Flow)
+### 3. GitHub Copilot 인증 (Device Login Flow)
 
 Worker를 배포한 뒤:
 
 ```bash
-# 1단계: 디바이스 코드 요청
-curl -X POST https://<your-worker>.workers.dev/auth/device
+# 1단계: 인증 시작
+curl https://<your-worker>.workers.dev/auth/start
 
 # 응답 예시:
-# { "user_code": "ABCD-1234", "verification_uri": "https://github.com/login/device", ... }
+# { "code": "XXXX-XXXX", "url": "https://github.com/login/device", "instructions": "..." }
 
-# 2단계: 브라우저에서 verification_uri 접속 후 user_code 입력
+# 2단계: 브라우저에서 https://github.com/login/device 접속 후 코드 입력
 
-# 3단계: 토큰 교환 완료
-curl -X POST https://<your-worker>.workers.dev/auth/device/complete \
-  -H "Content-Type: application/json" \
-  -d '{"device_code": "<device_code from step 1>"}'
+# 3단계: 인증 완료 여부 확인 (브라우저에서 코드 입력 후 호출)
+curl https://<your-worker>.workers.dev/auth/status
+# { "authenticated": true, "message": "GitHub Copilot authenticated successfully." }
 ```
 
-### 5. 환경 변수 설정 (Secrets)
+### 4. 환경 변수 설정 (Secrets)
 
 ```bash
 npx wrangler secret put OWNER_API_SECRET    # 오너 API 인증 키 (임의 문자열)
@@ -117,15 +109,13 @@ npx wrangler secret put KAGGLE_USERNAME     # Kaggle 계정명 (선택)
 npx wrangler secret put KAGGLE_KEY          # Kaggle API 키 (선택)
 ```
 
-### 6. 배포
+### 5. 배포
 
 ```bash
 npm run deploy
 ```
 
 ---
-
-## API 사용법
 
 모든 요청에 `X-Owner-Secret` 헤더가 필요합니다 (`OWNER_API_SECRET` 미설정 시 개발 모드로 인증 불필요).
 

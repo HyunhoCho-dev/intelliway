@@ -148,7 +148,7 @@ Produce a comprehensive research report.`;
     { role: "user", content: userPrompt },
   ];
 
-  const response = await copilotChat(env.TASK_QUEUE, history);
+  const response = await copilotChat(env.AGENT_MEMORY, history);
 
   // Update researcher context with key findings.
   await memSet(

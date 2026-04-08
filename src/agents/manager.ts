@@ -22,7 +22,6 @@ export interface Env {
   TASK_QUEUE: KVNamespace;
   AGENT_MEMORY: KVNamespace;
   MESSAGE_BUS: KVNamespace;
-  GITHUB_CLIENT_ID: string;
   COPILOT_TOKEN?: string;
   KAGGLE_USERNAME?: string;
   KAGGLE_KEY?: string;
@@ -73,7 +72,7 @@ export async function handleOwnerCommand(
     ...history.slice(-20), // keep last 20 turns for context
   ];
 
-  const response = await copilotChat(env.TASK_QUEUE, messages);
+  const response = await copilotChat(env.AGENT_MEMORY, messages);
   const reply = response.content;
 
   history.push({ role: "assistant", content: reply });
@@ -163,6 +162,6 @@ export async function generateReport(env: Env): Promise<string> {
     },
   ];
 
-  const response = await copilotChat(env.TASK_QUEUE, messages);
+  const response = await copilotChat(env.AGENT_MEMORY, messages);
   return response.content;
 }
