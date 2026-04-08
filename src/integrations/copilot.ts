@@ -9,7 +9,6 @@
  */
 
 export interface CopilotConfig {
-  githubClientId: string;
   /** Pre-existing token stored in KV; may be empty on first boot. */
   storedToken?: string;
   /** Cloudflare KV namespace used to persist the token. */
@@ -47,10 +46,18 @@ interface CopilotTokenResponse {
 }
 
 const GITHUB_API = "https://api.github.com";
+const GITHUB_LOGIN = "https://github.com";
 const COPILOT_API = "https://api.githubcopilot.com";
 const KV_KEY_GITHUB_TOKEN = "copilot:github_token";
 const KV_KEY_COPILOT_TOKEN = "copilot:copilot_token";
 const KV_KEY_COPILOT_EXPIRES = "copilot:copilot_token_expires";
+const KV_KEY_PENDING_DEVICE_CODE = "auth:pending_device_code";
+
+/**
+ * GitHub CLI's public Client ID — the same value used by GitHub CLI,
+ * OpenClaw, and other tools.  No OAuth App registration required.
+ */
+const GITHUB_CLI_CLIENT_ID = "Iv1.b507a08c87ecfe98";
 
 /**
  * Primary models tried in order.  Falls back to the next if the
@@ -68,15 +75,16 @@ const MODEL_PRIORITY = [
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Step 1 — Request a device code from GitHub.
+ * Step 1 — Request a device code from GitHub using the public GitHub CLI
+ * Client ID.  No OAuth App registration is required.
  * Returns the object the caller should display to the user (user_code +
  * verification_uri) and the opaque device_code needed for polling.
  */
-export async function requestDeviceCode(clientId: string): Promise<DeviceCodeResponse> {
-  const res = await fetch(`${GITHUB_API}/login/device/code`, {
+export async function requestDeviceCode(): Promise<DeviceCodeResponse> {
+  const res = await fetch(`${GITHUB_LOGIN}/login/device/code`, {
     method: "POST",
     headers: { Accept: "application/json", "Content-Type": "application/json" },
-    body: JSON.stringify({ client_id: clientId, scope: "read:user" }),
+    body: JSON.stringify({ client_id: GITHUB_CLI_CLIENT_ID, scope: "copilot" }),
   });
   if (!res.ok) {
     throw new Error(`GitHub device code request failed: ${res.status} ${await res.text()}`);
@@ -88,15 +96,12 @@ export async function requestDeviceCode(clientId: string): Promise<DeviceCodeRes
  * Step 2 — Poll for the access token after the user has authenticated.
  * Returns null if still pending, or the token string on success.
  */
-export async function pollForAccessToken(
-  clientId: string,
-  deviceCode: string,
-): Promise<string | null> {
-  const res = await fetch(`${GITHUB_API}/login/oauth/access_token`, {
+export async function pollForAccessToken(deviceCode: string): Promise<string | null> {
+  const res = await fetch(`${GITHUB_LOGIN}/login/oauth/access_token`, {
     method: "POST",
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     body: JSON.stringify({
-      client_id: clientId,
+      client_id: GITHUB_CLI_CLIENT_ID,
       device_code: deviceCode,
       grant_type: "urn:ietf:params:oauth:grant-type:device_code",
     }),
@@ -141,6 +146,25 @@ async function exchangeForCopilotToken(githubToken: string): Promise<CopilotToke
 // ─────────────────────────────────────────────────────────────────────────────
 // Token management
 // ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Persist the pending device_code in KV so /auth/status can poll it.
+ * TTL matches the device code expiry returned by GitHub (typically 15 min).
+ */
+export async function storePendingDeviceCode(
+  kv: KVNamespace,
+  deviceCode: string,
+  expiresIn: number,
+): Promise<void> {
+  await kv.put(KV_KEY_PENDING_DEVICE_CODE, deviceCode, { expirationTtl: expiresIn });
+}
+
+/**
+ * Retrieve the pending device_code stored by /auth/start, or null if absent.
+ */
+export async function getPendingDeviceCode(kv: KVNamespace): Promise<string | null> {
+  return kv.get(KV_KEY_PENDING_DEVICE_CODE);
+}
 
 /**
  * Returns a valid Copilot API token, refreshing it from KV or re-exchanging

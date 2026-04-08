@@ -11,8 +11,8 @@ import {
   handleGetStatus,
   handleGetReport,
   handlePostChat,
-  handleAuthDevice,
-  handleAuthDeviceComplete,
+  handleAuthStart,
+  handleAuthStatus,
 } from "./api/owner.js";
 import { runResearcher } from "./agents/researcher.js";
 import { runDeveloper } from "./agents/developer.js";
@@ -49,10 +49,10 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
       response = await handleGetReport(request, env);
     } else if (method === "POST" && path === "/chat") {
       response = await handlePostChat(request, env);
-    } else if (method === "POST" && path === "/auth/device") {
-      response = await handleAuthDevice(request, env);
-    } else if (method === "POST" && path === "/auth/device/complete") {
-      response = await handleAuthDeviceComplete(request, env);
+    } else if (method === "GET" && path === "/auth/start") {
+      response = await handleAuthStart(request, env);
+    } else if (method === "GET" && path === "/auth/status") {
+      response = await handleAuthStatus(request, env);
     } else if (method === "GET" && path === "/") {
       response = new Response(
         JSON.stringify({
@@ -64,8 +64,8 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
             "GET  /status",
             "GET  /report",
             "POST /chat",
-            "POST /auth/device",
-            "POST /auth/device/complete",
+            "GET  /auth/start",
+            "GET  /auth/status",
           ],
         }),
         { status: 200, headers: { "Content-Type": "application/json" } },
